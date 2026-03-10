@@ -1,0 +1,19 @@
+[project]
+name = "chronosx"
+version = "0.1.0"
+description = "Time utility library for trading"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas_market_calendars>=1.0.0",
+    "pandas",
+    "fastdigest",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "pre-commit",
+]
