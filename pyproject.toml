@@ -17,3 +17,13 @@ dev = [
     "ruff",
     "pre-commit",
 ]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+cli = "chronosx.cli:main"
