@@ -68,14 +68,49 @@ class Calendar:
     def next_trading_time(self, time: pd.Timestamp, step, inclusive) -> pd.Timestamp:
         self.scheduler.prepare(time, time)
         tts = mcal.date_range(self.schedule, frequency=step) - pd.Timedelta(step)
-        return tts[tts <= time][-1] if inclusive else tts[tts < time][-1]
+        # inclusive, search left means >= time
+        # exclusive, search right means > time
+        idx = tts.searchsorted(time, side="left" if inclusive else "right")
+        return tts[idx] if idx < len(tts) else None
 
     def previous_trading_time(
         self, time: pd.Timestamp, step, inclusive
     ) -> pd.Timestamp:
+        # TODO: short interval don't need long schedule, let scheduler give me the right schedule
         self.scheduler.prepare(time, time)
         tts = mcal.date_range(self.schedule, frequency=step) - pd.Timedelta(step)
-        return tts[tts >= time][-1] if inclusive else tts[tts > time][-1]
+        # inclusive, search right means > time, -1 must be <= time
+        # exclusive, search left means >= time, -1 must be < time
+        idx = tts.searchsorted(time, side="right" if inclusive else "left") - 1
+        return tts[idx] if idx >= 0 else None
+
+    def _search_interval(self, time: pd.Timestamp) -> pd.Interval:
+        # find time belongs to which trading day in schedule
+        # TODO: mv to scheduler for fast prepare
+        intervals = pd.IntervalIndex.from_arrays(
+            self.schedule["market_open"], self.schedule["market_close"], closed="left"
+        )
+
+        # check target_time, contains will return a mask
+        is_inside = intervals.contains(time)
+
+        if not is_inside.any():
+            raise ValueError(f"Time {time} is not in trading interval")
+        if is_inside.sum() != 1:
+            raise ValueError(
+                f"Time {time} is in multiple trading days {intervals[is_inside]}"
+            )
+
+        return self.schedule.loc[is_inside].iloc[0]
+
+    def to_session_end(self, time: pd.Timestamp) -> pd.Timestamp:
+        """use calendar cuz we may meet early close time before holidays"""
+        trading_day = self._search_interval(time)
+        return trading_day["market_close"]
+
+    def to_session_start(self, time: pd.Timestamp) -> pd.Timestamp:
+        trading_day = self._search_interval(time)
+        return trading_day["market_open"]
 
 
 # China Exchange (Shanghai, Shenzhen, CFE) are all in the same timezone, so we can use the same calendar for them.

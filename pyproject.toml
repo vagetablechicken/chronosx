@@ -27,3 +27,6 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 cli = "chronosx.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "-s -v"
