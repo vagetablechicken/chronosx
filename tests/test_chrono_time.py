@@ -59,6 +59,15 @@ def test_trading_times():
     )
     assert len(tts) == 239
 
+def test_previous_and_next():
+    calendar = Calendar("SSE")
+    t1 = ChronoTime("2026-03-10T11:29:00", calendar)
+    assert t1.is_trading_time()
+    assert t1.previous_trading_time() == t1
+    t2 = ChronoTime("2026-03-10T11:30:00", calendar)
+    assert not t2.is_trading_time()
+    t2 = t2.previous_trading_time()
+    assert t1 == t2
 
 def test_cme_shift():
     calendar = Calendar("CME Globex Crypto")

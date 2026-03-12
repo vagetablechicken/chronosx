@@ -65,9 +65,17 @@ class Calendar:
         mask = (tts >= start) & (tts < end)
         return tts[mask].to_series()
 
-    def next_trading_time(self, time: pd.Timestamp, step) -> pd.Timestamp:
-        """Time can be invalid trading time, jump to next trading time"""
-        ...
+    def next_trading_time(self, time: pd.Timestamp, step, inclusive) -> pd.Timestamp:
+        self.scheduler.prepare(time, time)
+        tts = mcal.date_range(self.schedule, frequency=step) - pd.Timedelta(step)
+        return tts[tts <= time][-1] if inclusive else tts[tts < time][-1]
+
+    def previous_trading_time(
+        self, time: pd.Timestamp, step, inclusive
+    ) -> pd.Timestamp:
+        self.scheduler.prepare(time, time)
+        tts = mcal.date_range(self.schedule, frequency=step) - pd.Timedelta(step)
+        return tts[tts >= time][-1] if inclusive else tts[tts > time][-1]
 
 
 # China Exchange (Shanghai, Shenzhen, CFE) are all in the same timezone, so we can use the same calendar for them.

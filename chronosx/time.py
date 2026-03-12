@@ -36,6 +36,10 @@ class ChronoTime:
 
         return self.calendar.trading_times(self.raw_time, end_dt, step)
 
-    def next_trading_time(self, step="1min"):
-        """Self can be invalid trading time, jump to next trading time"""
-        return self.calendar.next_trading_time(self.raw_time, step)
+    def next_trading_time(self, step="1min", inclusive=True):
+        """trading time >= self, > self if inclusive is False"""
+        return self.calendar.next_trading_time(self.raw_time, step, inclusive)
+
+    def previous_trading_time(self, step="1min", inclusive=True):
+        """trading time <= self, < self if inclusive is False"""
+        return self.calendar.previous_trading_time(self.raw_time, step, inclusive)
