@@ -43,6 +43,9 @@ class ChronoTime:
     def __repr__(self):
         return f"ChronoTime({self.raw_time}, {self.calendar})"
 
+    def __str__(self):
+        return str(self.raw_time)
+
     def __eq__(self, value):
         """ignore calendar"""
         if isinstance(value, ChronoTime):
@@ -93,3 +96,45 @@ class ChronoTime:
 
     def to_session_start(self) -> "ChronoTime":
         return ChronoTime(self.calendar.to_session_start(self.raw_time), self.calendar)
+
+    def timestamp(self) -> pd.Timestamp:
+        return self.raw_time.to_pydatetime()
+
+    def __add__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time + other
+
+    def __sub__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time - other
+
+    def __lt__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time < other
+
+    def __le__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time <= other
+
+    def __gt__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time > other
+
+    def __ge__(self, other):
+        other = (
+            other.raw_time if isinstance(other, ChronoTime) else pd.to_datetime(other)
+        )
+        return self.raw_time >= other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

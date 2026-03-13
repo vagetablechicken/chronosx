@@ -83,6 +83,21 @@ def test_session_start_and_end():
     assert t3.is_trading_time()
     assert t3.raw_time.isoformat() == "2026-03-10T09:30:00+08:00"
 
+    assert str(t1) == "2026-03-10 11:29:00+08:00"
+
+
+def test_operator():
+    calendar = Calendar("SSE")
+    t1 = ChronoTime("2026-03-10T11:29:00", calendar)
+    t2 = ChronoTime("2026-03-10T11:30:00", calendar)
+    assert t1 < t2
+    assert t1 <= t2
+    assert t2 > t1
+    assert t2 >= t1
+    assert t1 != t2
+    assert t1 == ChronoTime("2026-03-10T11:29:00", calendar)
+    assert (t1 - t2).total_seconds() == -60
+
 
 def test_cme_specials():
     calendar = Calendar("CME Globex Crypto")
