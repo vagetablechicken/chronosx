@@ -1,42 +1,62 @@
 import pytest
-from chronosx.calendar import Calendar
+from chronosx.scheduler import StaticMinuteScheduler, SchedulerManager
 from chronosx.time import ChronoTime
 
 
-@pytest.fixture(scope="module")
-def calendar():
-    return Calendar("SSE")
+CALENDARS = ["SSE", "CME Globex Crypto", "ICE"]
+
+
+@pytest.fixture(params=CALENDARS)
+def switch_scheduler(request):
+    """
+    自动为每个测试用例切换 Scheduler。
+    request.param 会依次取得 CALENDARS 里的值。
+    """
+    name = request.param
+    # 假设你的 StaticMinuteScheduler 接受名称初始化
+    scheduler = StaticMinuteScheduler(name)
+
+    with SchedulerManager.use_scheduler(scheduler):
+        yield scheduler
 
 
 @pytest.fixture
-def t_start(calendar):
-    return ChronoTime("2026-03-10T09:30:00", calendar)
+def t_start(switch_scheduler):
+    return ChronoTime("2026-03-10T09:30:00")
 
 
-def test_perf_init(benchmark, calendar):
-    benchmark(ChronoTime, "2026-03-10T09:30:00", calendar)
+def test_perf_init(benchmark):
+    benchmark(ChronoTime, "2026-03-10T09:30:00")
 
 
 def test_perf_jump(benchmark, t_start):
     # This triggers full schedule expansion in current implementation
-    benchmark(t_start.jump, 1)
+    benchmark(t_start.shift, 1)
 
 
-def test_perf_is_trading_time(benchmark, t_start):
-    benchmark(t_start.is_trading_time)
+def test_perf_is_trading(benchmark, t_start):
+    benchmark(t_start.is_trading)
 
 
-def test_perf_trading_times_until(benchmark, t_start):
+def test_perf_is_trading_day(benchmark, t_start):
+    benchmark(t_start.is_trading_day)
+
+
+def test_perf_trading_times(benchmark, t_start):
     t_end = "2026-03-10T10:30:00"
-    benchmark(t_start.trading_times_until, t_end)
+    benchmark(t_start.trading_times, t_end)
+
+
+def test_perf_previous_trading_time(benchmark, t_start):
+    benchmark(t_start.previous_trading_time)
 
 
 def test_perf_next_trading_time(benchmark, t_start):
     benchmark(t_start.next_trading_time)
 
 
-def test_perf_previous_trading_time(benchmark, t_start):
-    benchmark(t_start.previous_trading_time)
+def test_perf_to_session_start(benchmark, t_start):
+    benchmark(t_start.to_session_start)
 
 
 def test_perf_to_session_end(benchmark, t_start):

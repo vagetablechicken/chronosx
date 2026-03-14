@@ -44,7 +44,7 @@ dev = [
 requires-dist = [
     { name = "fastdigest" },
     { name = "pandas" },
-    { name = "pandas-market-calendars", specifier = ">=1.0.0" },
+    { name = "pandas-market-calendars", specifier = "==5.3.1" },
 ]
 
 [package.metadata.requires-dev]
