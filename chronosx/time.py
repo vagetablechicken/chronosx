@@ -28,9 +28,12 @@ class ChronoTime(pd.Timestamp):
 
     def __new__(cls, ts: Union[datetime, str, "ChronoTime", int, float]):
         temp_ts = pd.Timestamp(ts)
+        default_tz = SchedulerManager.get_scheduler().tz
         if temp_ts.tz is None:
-            default_tz = SchedulerManager.get_scheduler().tz
             temp_ts = temp_ts.tz_localize(default_tz)
+        elif temp_ts.tz != default_tz:
+            # convert to named tz, to avoid compare static tz time with named tz time of scheduler
+            temp_ts = temp_ts.tz_convert(default_tz)
         instance = super().__new__(cls, temp_ts)
         instance.__class__ = cls
         return instance

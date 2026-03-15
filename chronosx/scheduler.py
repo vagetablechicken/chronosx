@@ -108,9 +108,30 @@ class StaticMinuteScheduler(SchedulerTemplate):
             pd.Timestamp.now() + pd.Timedelta(days=365 * 3),
             tz=self.calendar.tz,
         )
-        self.intervals = pd.IntervalIndex.from_arrays(
-            self.schedule["market_open"], self.schedule["market_close"], closed="left"
-        )
+        self.session_intervals = pd.IntervalIndex.from_arrays(
+                self.schedule["market_open"],
+                self.schedule["market_close"],
+                closed="left",
+            )
+        if "break_start" not in self.schedule.columns:
+            self.intervals = self.session_intervals
+        else:
+            # SSE 1 break per trading day, haven't consider about multi breaks
+            starts_1 = self.schedule["market_open"]
+            ends_1 = self.schedule["break_start"]
+
+            starts_2 = self.schedule["break_end"]
+            ends_2 = self.schedule["market_close"]
+
+            # 纵向拼接 (Flatten)
+            all_starts = pd.concat([starts_1, starts_2]).dropna().sort_values()
+            all_ends = pd.concat([ends_1, ends_2]).dropna().sort_values()
+
+            # 一次性构造，确保顺序严格递增且无重复
+            self.intervals = pd.IntervalIndex.from_arrays(
+                all_starts, all_ends, closed="left"
+            )
+
         # date_range time is the end time, but we want the start time, so we need to shift back by one step
         self.trading_minutes = mcal.date_range(
             self.schedule, frequency="1min"
@@ -172,7 +193,8 @@ class StaticMinuteScheduler(SchedulerTemplate):
 
     def is_trading(self, time: pd.Timestamp) -> bool:
         """Check if the time is a trading time."""
-        idx = self.intervals.get_indexer([self])
+        # be careful to exclude break times
+        idx = self.intervals.get_indexer([time])
         return idx[0] != -1
 
     def is_trading_day(self, time: pd.Timestamp) -> bool:
@@ -184,12 +206,13 @@ class StaticMinuteScheduler(SchedulerTemplate):
 
         # 检查 IntervalIndex 中是否有任何区间与这一天重叠
         # overlaps 返回一个布尔数组，.any() 判断是否存在至少一个 True
-        return self.intervals.overlaps(target_interval).any()
+        # use session intervals, cuz we don't care breaks
+        return self.session_intervals.overlaps(target_interval).any()
 
     def _fetch_interval(self, time: pd.Timestamp):
         # find time belongs to which trading day in schedule
         # check target_time, contains will return a mask
-        is_inside = self.intervals.contains(time)
+        is_inside = self.session_intervals.contains(time)
 
         if not is_inside.any():
             raise ValueError(f"Time {time} is not in trading interval")

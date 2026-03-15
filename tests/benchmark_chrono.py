@@ -1,4 +1,5 @@
 import pytest
+from chronosx.mock import travel
 from chronosx.scheduler import StaticMinuteScheduler, SchedulerManager
 from chronosx.time import ChronoTime
 
@@ -31,7 +32,7 @@ def test_perf_init(benchmark):
 
 def test_perf_jump(benchmark, t_start):
     # This triggers full schedule expansion in current implementation
-    benchmark(t_start.shift, 1)
+    benchmark(t_start.shift, 100)
 
 
 def test_perf_is_trading(benchmark, t_start):
@@ -61,3 +62,8 @@ def test_perf_to_session_start(benchmark, t_start):
 
 def test_perf_to_session_end(benchmark, t_start):
     benchmark(t_start.to_session_end)
+
+
+def test_travel(benchmark, t_start):
+    with travel(t_start):
+        benchmark(ChronoTime.now().shift, -100)
