@@ -103,7 +103,7 @@ def test_cme_specials():
         assert not ChronoTime("2025-12-24 21:00:00+00:00").is_trading()
         assert ChronoTime("2025-12-25 17:00:00-06:00").is_trading()
         assert ChronoTime("2025-12-25 23:00:00+00:00").is_trading()
-       
+
         # cme has BTB BTIC on Bitcoin Futures London Close, but it's not in cme
         # London Boxing Day will make closed on 2025-12-26T10:00:00, but cme is opening
         assert ChronoTime("2025-12-26T10:01:00").is_trading()

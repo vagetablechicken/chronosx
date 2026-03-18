@@ -109,10 +109,10 @@ class StaticMinuteScheduler(SchedulerTemplate):
             tz=self.calendar.tz,
         )
         self.session_intervals = pd.IntervalIndex.from_arrays(
-                self.schedule["market_open"],
-                self.schedule["market_close"],
-                closed="left",
-            )
+            self.schedule["market_open"],
+            self.schedule["market_close"],
+            closed="left",
+        )
         if "break_start" not in self.schedule.columns:
             self.intervals = self.session_intervals
         else:
