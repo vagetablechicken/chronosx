@@ -1,7 +1,7 @@
 [project]
 name = "chronosx"
 dynamic = ["version"]
-description = "Time utility library for trading"
+description = "A Python library for trading calendar management, execution profiling, and temporal backtesting (Time Travel)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

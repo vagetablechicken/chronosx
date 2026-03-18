@@ -41,8 +41,12 @@ class PerformanceRegistry:
     def full_report(cls):
         b = io.StringIO()
         for name in cls._metrics.keys():
-            b.write(f"{name}: {cls.get_report(name)}\n")
+            b.write(f"{cls.get_report(name)}\n")
         return b.getvalue()
+
+    @classmethod
+    def clear(cls):
+        cls._metrics.clear()
 
 
 class performance(ContextDecorator):

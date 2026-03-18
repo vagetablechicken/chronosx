@@ -1,6 +1,6 @@
 # Chronosx
 
-A Python library for working with time intervals and chronological data.
+A Python library for trading calendar management, execution profiling, and temporal backtesting (Time Travel).
 
 ## Installation
 
@@ -31,6 +31,26 @@ time.trading_times(end=pd.Timestamp("2026-03-08 13:01:00+08:00"))
 # e.g. SSE "2026-03-08 11:29:00+08:00" belongs to session '2026-03-08', so the session start is '2026-03-08 09:30:00+08:00'
 # e.g. CME session '2026-03-08' starts from '2026-03-07 17:00:00-06:00', so the session start is '2026-03-07 17:00:00-06:00', not '2026-03-08 00:00:00+00:00'
 time.to_session_start()
+
+# performance profiling
+from chronosx.performance import performance, PerformanceRegistry
+@performance("slug_name")
+def f1():
+    ...
+f1()
+# get report of this function
+print(PerformanceRegistry.get_report("slug_name"))
+# get report of all functions
+print(PerformanceRegistry.get_report())
+# if you want to reset
+PerformanceRegistry.clear()
+
+# time travel
+from chronosx.mock import travel
+with travel("2026-03-08 11:29:00+08:00"):
+    # only effect ChronoTime, datetime or pd.Timestamp still work
+    # thread-local mock, thread-safe
+    ChronoTime.now()
 ```
 
 ### Add calendar
