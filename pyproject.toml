@@ -1,6 +1,6 @@
 [project]
 name = "chronosx"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Time utility library for trading"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,3 +32,6 @@ cli = "chronosx.cli:main"
 
 [tool.pytest.ini_options]
 addopts = "-s -v"
+
+[tool.hatch.version]
+path = "chronosx/__init__.py"

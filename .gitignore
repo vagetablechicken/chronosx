@@ -9,3 +9,5 @@ dist/
 build/
 *.egg
 .vscode/
+.ruff_cache/
+.benchmarks/

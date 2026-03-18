@@ -46,8 +46,11 @@ class ChronoTime(pd.Timestamp):
     def trading_times(
         self, end: Union[datetime, "ChronoTime", pd.Timestamp], step: str = "1min"
     ) -> pd.Series:
+        """
+        [self, end)
+        """
         return SchedulerManager.get_scheduler().trading_times(
-            start=self, end=end, step=step
+            start=self, end=ChronoTime(end), step=step
         )
 
     def previous_trading_time(self, step: str = "1min", inclusive=True) -> ChronoTime:
