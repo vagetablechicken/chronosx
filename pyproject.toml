@@ -35,3 +35,6 @@ addopts = "-s -v"
 
 [tool.hatch.version]
 path = "chronosx/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["chronosx"]
