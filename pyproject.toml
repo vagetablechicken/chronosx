@@ -1,5 +1,5 @@
 [project]
-name = "chronosx"
+name = "chronosx-quant"
 dynamic = ["version"]
 description = "A Python library for trading calendar management, execution profiling, and temporal backtesting (Time Travel)."
 readme = "README.md"
