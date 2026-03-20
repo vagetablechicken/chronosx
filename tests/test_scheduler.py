@@ -1,4 +1,4 @@
-from chronosx.scheduler import StaticMinuteScheduler
+from chronosx_quant.scheduler import StaticMinuteScheduler
 
 
 def test_init():

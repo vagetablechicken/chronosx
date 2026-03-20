@@ -149,12 +149,18 @@ class StaticMinuteScheduler(SchedulerTemplate):
         """
         Shift the time by delta in trading time, i.e. jump to the next trading time if the result is not a trading time.
 
-        Time should be a valid trading time.
+        Time should be a valid trading time, second and microsecond will be preserved.
         """
+        # save second and microsecond
+        second = time.second
+        microsecond = time.microsecond
+        time = time.replace(second=0, microsecond=0)
         # raise an error if time is not a trading time
         time_idx = self.trading_minutes.get_loc(time)
         # raise an error if out of range
-        return self.trading_minutes[time_idx + delta]
+        shifted = self.trading_minutes[time_idx + delta]
+        # restore second and microsecond
+        return shifted.replace(second=second, microsecond=microsecond)
 
     @require_1min_step
     def trading_times(

@@ -7,14 +7,19 @@ A Python library for trading calendar management, execution profiling, and tempo
 ```bash
 uv build
 pip install dist/chronosx-0.2.0-py3-none-any.whl
-# haven't upload to pypi
-# pip install chronosx
+
+# install from pypi
+pip install chronosx-quant
+
+# check holidays in the next month
+uv run chronosx-preview
+chronosx-preview
 ```
 
 ## Usage
 
 ```python
-from chronosx.time import ChronoTime
+from chronosx_quant.time import ChronoTime
 # use CALENDAR_NAME to select default calendar, e.g. SSE
 time = ChronoTime.now()
 time = ChronoTime("2026-03-08 11:29:00+08:00")
@@ -33,7 +38,7 @@ time.trading_times(end=pd.Timestamp("2026-03-08 13:01:00+08:00"))
 time.to_session_start()
 
 # performance profiling
-from chronosx.performance import performance, PerformanceRegistry
+from chronosx_quant.performance import performance, PerformanceRegistry
 @performance("slug_name")
 def f1():
     ...
@@ -46,7 +51,7 @@ print(PerformanceRegistry.get_report())
 PerformanceRegistry.clear()
 
 # time travel
-from chronosx.mock import travel
+from chronosx_quant.mock import travel
 with travel("2026-03-08 11:29:00+08:00"):
     # only effect ChronoTime, datetime or pd.Timestamp still work
     # thread-local mock, thread-safe

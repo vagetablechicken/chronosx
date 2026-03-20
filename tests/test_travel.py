@@ -1,7 +1,7 @@
 from zoneinfo import ZoneInfo
 
-from chronosx.time import ChronoTime
-from chronosx.mock import travel
+from chronosx_quant.time import ChronoTime
+from chronosx_quant.mock import travel
 
 
 def test_travel():

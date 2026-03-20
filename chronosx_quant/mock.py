@@ -1,7 +1,8 @@
-from chronosx.time import ChronoTime
+from contextlib import ContextDecorator
+from chronosx_quant.time import ChronoTime
 
 
-class travel:
+class travel(ContextDecorator):
     def __init__(self, mock_time):
         self.mock_time = ChronoTime(mock_time)
 

@@ -1,6 +1,6 @@
 import pytest
-from chronosx.time import ChronoTime
-from chronosx.scheduler import StaticMinuteScheduler, SchedulerManager
+from chronosx_quant.time import ChronoTime
+from chronosx_quant.scheduler import StaticMinuteScheduler, SchedulerManager
 
 
 def test_init():
@@ -29,6 +29,11 @@ def test_time_shift():
     with pytest.raises(ValueError):
         t = ChronoTime("2026-03-10T11:29:00").shift(1, step="3min")
         assert t.isoformat() == "2026-03-10T13:02:00+08:00"
+
+    t = ChronoTime("2026-03-10T11:29:03.1234").shift(-1, step="1min")
+    assert t.isoformat() == "2026-03-10T11:28:03.123400+08:00"
+    t = ChronoTime("2026-03-10T11:29:03.1234").shift(1, step="1min")
+    assert t.isoformat() == "2026-03-10T13:00:03.123400+08:00"
 
 
 def test_is_trading():

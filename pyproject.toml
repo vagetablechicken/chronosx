@@ -28,13 +28,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-cli = "chronosx.cli:main"
+chronosx-preview = "chronosx_quant.preview:main"
 
 [tool.pytest.ini_options]
 addopts = "-s -v"
 
 [tool.hatch.version]
-path = "chronosx/__init__.py"
+path = "chronosx_quant/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["chronosx"]
+packages = ["chronosx_quant"]

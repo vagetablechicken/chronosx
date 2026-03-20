@@ -1,7 +1,7 @@
 import pytest
-from chronosx.mock import travel
-from chronosx.scheduler import StaticMinuteScheduler, SchedulerManager
-from chronosx.time import ChronoTime
+from chronosx_quant.mock import travel
+from chronosx_quant.scheduler import StaticMinuteScheduler, SchedulerManager
+from chronosx_quant.time import ChronoTime
 
 
 CALENDARS = ["SSE", "CME Globex Crypto", "ICE"]

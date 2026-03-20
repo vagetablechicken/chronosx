@@ -1,6 +1,6 @@
 import time
 
-from chronosx.performance import performance, PerformanceRegistry
+from chronosx_quant.performance import performance, PerformanceRegistry
 
 
 def test_performance():

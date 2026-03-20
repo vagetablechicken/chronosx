@@ -1,6 +1,6 @@
 import pandas as pd
 import pandas_market_calendars as mcal
-from chronosx.scheduler import SchedulerManager, StaticMinuteScheduler
+from chronosx_quant.scheduler import SchedulerManager, StaticMinuteScheduler
 
 
 def calendar_preview(calendar_name):

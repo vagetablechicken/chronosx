@@ -4,7 +4,7 @@ import threading
 from typing import Union
 import pandas as pd
 
-from chronosx.scheduler import SchedulerManager
+from chronosx_quant.scheduler import SchedulerManager
 
 
 class ChronoTime(pd.Timestamp):
