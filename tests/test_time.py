@@ -58,6 +58,9 @@ def test_trading_times():
     tts = ChronoTime("2026-03-10T09:30:00").trading_times("2026-03-10T14:59:00")
     assert len(tts) == 239
 
+    days = tts.resample("D").first().dt.date
+    assert len(days) == 1
+
 
 def test_previous_and_next():
     t1 = ChronoTime("2026-03-10T11:29:00")
