@@ -53,6 +53,19 @@ class ChronoTime(pd.Timestamp):
             start=self, end=ChronoTime(end), step=step
         )
 
+    def trading_day_delta(
+        self, end: Union[datetime, "ChronoTime", pd.Timestamp]
+    ) -> int:
+        """
+        Return the signed trading-day distance between `self` and `end`.
+
+        Forward ranges return a positive count and backward ranges return a
+        negative count.
+        """
+        return SchedulerManager.get_scheduler().trading_day_delta(
+            start=self, end=ChronoTime(end)
+        )
+
     def previous_trading_time(self, step: str = "1min", inclusive=True) -> ChronoTime:
         return ChronoTime(
             SchedulerManager.get_scheduler().previous_trading_time(

@@ -62,6 +62,62 @@ def test_trading_times():
     assert len(days) == 1
 
 
+def test_trading_day_delta():
+    # Intraday time does not matter within the same trading date.
+    assert (
+        ChronoTime("2026-03-10T09:30:00").trading_day_delta("2026-03-10T14:59:00")
+        == 1
+    )
+    assert (
+        ChronoTime("2026-03-10T00:01:00").trading_day_delta("2026-03-10T23:59:00")
+        == 1
+    )
+
+    # Crossing consecutive trading dates counts each endpoint date inclusively.
+    assert (
+        ChronoTime("2026-03-10T11:29:00").trading_day_delta("2026-03-12T13:00:00")
+        == 3
+    )
+    assert (
+        ChronoTime("2026-03-10T08:00:00").trading_day_delta("2026-03-12T20:00:00")
+        == 3
+    )
+
+    # Weekend dates are skipped, so Friday to Monday spans two trading days.
+    assert (
+        ChronoTime("2026-03-13T14:59:00").trading_day_delta("2026-03-16T09:30:00")
+        == 2
+    )
+    assert (
+        ChronoTime("2026-03-13T20:00:00").trading_day_delta("2026-03-16T08:00:00")
+        == 2
+    )
+
+    # Reversing direction keeps the magnitude and flips the sign.
+    assert (
+        ChronoTime("2026-03-16T09:30:00").trading_day_delta("2026-03-13T14:59:00")
+        == -2
+    )
+    assert (
+        ChronoTime("2026-03-16T20:00:00").trading_day_delta("2026-03-13T08:00:00")
+        == -2
+    )
+
+    # Non-trading dates contribute zero unless the interval also includes a trading date.
+    assert (
+        ChronoTime("2026-03-15T09:30:00").trading_day_delta("2026-03-15T14:59:00")
+        == 0
+    )
+    assert (
+        ChronoTime("2026-03-15T00:01:00").trading_day_delta("2026-03-16T00:01:00")
+        == 1
+    )
+    assert (
+        ChronoTime("2026-03-14T12:00:00").trading_day_delta("2026-03-15T12:00:00")
+        == 0
+    )
+
+
 def test_previous_and_next():
     t1 = ChronoTime("2026-03-10T11:29:00")
     assert t1.is_trading()
@@ -135,3 +191,38 @@ def test_cme_specials():
         # not a normal market close
         t1 = ChronoTime("2025-12-24T00:00:00").to_session_end()
         assert t1.isoformat() == "2025-12-24T12:15:00-06:00"
+
+        # Sunday afternoon belongs to the Monday trading day for CME Globex Crypto,
+        # so moving within that reopened session should not change the trading-day delta.
+        assert (
+            ChronoTime("2025-12-07T15:58:00").trading_day_delta("2025-12-07T18:00:00")
+            == 0
+        )
+        # Crossing from Sunday afternoon into Monday calendar time advances by one
+        # trading day because the endpoints land on consecutive trading dates.
+        assert (
+            ChronoTime("2025-12-07T15:58:00").trading_day_delta("2025-12-08T16:30:00")
+            == 1
+        )
+        # Friday close to Sunday reopen spans the weekend, but only one new trading
+        # day appears once the market opens again on Sunday evening.
+        assert (
+            ChronoTime("2025-12-26T15:58:00").trading_day_delta("2025-12-28T17:02:00")
+            == 1
+        )
+        # Sunday evening reopen and Monday daytime are consecutive trading dates.
+        assert (
+            ChronoTime("2025-12-28T17:00:00").trading_day_delta("2025-12-29T16:00:00")
+            == 1
+        )
+        # After Monday's close, Tuesday's trading day is the second inclusive date
+        # in the interval, so the signed delta is 2.
+        assert (
+            ChronoTime("2025-12-29T16:30:00").trading_day_delta("2025-12-30T10:00:00")
+            == 2
+        )
+        # Reverse direction keeps the same magnitude and flips the sign.
+        assert (
+            ChronoTime("2025-12-30T10:00:00").trading_day_delta("2025-12-29T16:30:00")
+            == -2
+        )

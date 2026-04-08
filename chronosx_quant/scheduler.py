@@ -7,7 +7,13 @@ import threading
 import pandas_market_calendars as mcal
 import pandas as pd
 
-"""Scheduler is a wrapper of Calendar and schedules, """
+"""
+Scheduler abstractions for trading-calendar queries.
+
+The scheduler implementation is customizable, but the default runtime scheduler is
+`StaticMinuteScheduler` because it precomputes a fixed timeline and is optimized
+for performance.
+"""
 
 
 def require_1min_step(func):
@@ -46,26 +52,28 @@ class SchedulerManager:
     @contextmanager
     def use_scheduler(temp_schedule):
         """
-        临时切换 Schedule，退出 with 块后自动恢复。
-        用法:
+        Temporarily switch the active scheduler and restore it after the `with` block.
+
+        Usage:
         with SchedulerManager.use_schedule(MockSchedule()):
-            # 执行测试逻辑
+            # run test logic
         """
-        # 1. 记录旧状态
+        # 1. Save the previous scheduler state.
         has_old = hasattr(SchedulerManager._storage, "schedule")
         old_schedule = getattr(SchedulerManager._storage, "schedule", None)
 
-        # 2. 设置新状态
+        # 2. Install the temporary scheduler.
         SchedulerManager.set_scheduler(temp_schedule)
 
         try:
             yield
         finally:
-            # 3. 恢复旧状态
+            # 3. Restore the previous scheduler state.
             if has_old:
                 SchedulerManager.set_scheduler(old_schedule)
             else:
-                # 如果原本没有 schedule，则清理掉，保持 threading.local 干净
+                # If there was no scheduler before, remove the temporary value so
+                # the thread-local storage stays clean.
                 if hasattr(SchedulerManager._storage, "schedule"):
                     del SchedulerManager._storage.schedule
 
@@ -75,6 +83,7 @@ class SchedulerTemplate:
     def trading_times(
         self, start: pd.Timestamp, end: pd.Timestamp, step: str
     ) -> pd.Series: ...
+    def trading_day_delta(self, start: pd.Timestamp, end: pd.Timestamp) -> int: ...
     def previous_trading_time(
         self, time: pd.Timestamp, step: str, inclusive=True
     ) -> pd.Timestamp: ...
@@ -116,18 +125,20 @@ class StaticMinuteScheduler(SchedulerTemplate):
         if "break_start" not in self.schedule.columns:
             self.intervals = self.session_intervals
         else:
-            # SSE 1 break per trading day, haven't consider about multi breaks
+            # SSE has one break per trading day; multi-break calendars are not
+            # handled here.
             starts_1 = self.schedule["market_open"]
             ends_1 = self.schedule["break_start"]
 
             starts_2 = self.schedule["break_end"]
             ends_2 = self.schedule["market_close"]
 
-            # 纵向拼接 (Flatten)
+            # Flatten the split sessions into a single list of intervals.
             all_starts = pd.concat([starts_1, starts_2]).dropna().sort_values()
             all_ends = pd.concat([ends_1, ends_2]).dropna().sort_values()
 
-            # 一次性构造，确保顺序严格递增且无重复
+            # Build the interval index once so ordering stays strictly increasing
+            # and duplicates are avoided.
             self.intervals = pd.IntervalIndex.from_arrays(
                 all_starts, all_ends, closed="left"
             )
@@ -171,6 +182,26 @@ class StaticMinuteScheduler(SchedulerTemplate):
         right_idx = self.trading_minutes.searchsorted(end, side="left")
         return self.trading_minutes[left_idx:right_idx].to_series()
 
+    def trading_day_delta(self, start: pd.Timestamp, end: pd.Timestamp) -> int:
+        """
+        Return the signed trading-day distance between `start` and `end`.
+
+        The delta is based on calendar dates in the scheduler timezone, so intraday
+        time does not matter. If either endpoint falls on a non-trading date, that
+        date contributes 0. Order is preserved: forward ranges are positive and
+        backward ranges are negative.
+        """
+        start_day = start.normalize().tz_localize(None)
+        end_day = end.normalize().tz_localize(None)
+        if start_day <= end_day:
+            left_idx = self.schedule.index.searchsorted(start_day, side="left")
+            right_idx = self.schedule.index.searchsorted(end_day, side="right")
+            return right_idx - left_idx
+
+        left_idx = self.schedule.index.searchsorted(end_day, side="left")
+        right_idx = self.schedule.index.searchsorted(start_day, side="right")
+        return -(right_idx - left_idx)
+
     @require_1min_step
     def previous_trading_time(
         self, time: pd.Timestamp, *, step: str, inclusive: bool
@@ -208,26 +239,29 @@ class StaticMinuteScheduler(SchedulerTemplate):
         # trading day may start from previous day, use interval to check
         day_start = time.normalize()
         day_end = day_start + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
-        target_interval = pd.Interval(day_start, day_end, closed="left")
 
-        # 检查 IntervalIndex 中是否有任何区间与这一天重叠
-        # overlaps 返回一个布尔数组，.any() 判断是否存在至少一个 True
-        # use session intervals, cuz we don't care breaks
-        return self.session_intervals.overlaps(target_interval).any()
+        # O(log N) fast overlap check instead of O(N) `self.session_intervals.overlaps().any()`
+        # 1. Find the first trading session that ends AFTER the day starts
+        close_times = self.schedule["market_close"]
+        idx = close_times.searchsorted(day_start, side="right")
+
+        if idx == len(close_times):
+            return False
+            
+        # 2. Check if this session starts BEFORE the day ends
+        return self.schedule["market_open"].iloc[idx] <= day_end
 
     def _fetch_interval(self, time: pd.Timestamp):
-        # find time belongs to which trading day in schedule
-        # check target_time, contains will return a mask
-        is_inside = self.session_intervals.contains(time)
-
-        if not is_inside.any():
+        # We use `get_indexer` instead of `contains` for performance.
+        # `contains` evaluates all intervals and returns a full boolean mask (O(N)),
+        # which is slow over thousands of trading days. Because trading sessions
+        # do not overlap, `get_indexer` safely uses the underlying C-level
+        # IntervalTree for O(log N) lookups, providing massive speedups.
+        idx = self.session_intervals.get_indexer([time])[0]
+        if idx == -1:
             raise ValueError(f"Time {time} is not in trading interval")
-        if is_inside.sum() != 1:
-            raise ValueError(
-                f"Time {time} is in multiple trading days {self.intervals[is_inside]}"
-            )
-
-        return self.schedule.loc[is_inside].iloc[0]
+        
+        return self.schedule.iloc[idx]
 
     def to_session_end(self, time: pd.Timestamp) -> pd.Timestamp:
         """use calendar cuz we may meet early close time before holidays"""
