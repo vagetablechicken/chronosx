@@ -1,7 +1,6 @@
-import pandas as pd
 import pytest
 
-from tests.helpers import get_scheduler
+from tests.helpers import ts
 
 
 @pytest.mark.parametrize(
@@ -10,12 +9,8 @@ from tests.helpers import get_scheduler
 )
 def test_builtin_china_futures_calendar_has_no_night_session_after_holidays(
     calendar_name,
+    scheduler,
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
-
     assert scheduler.is_trading(ts("2026-09-24 14:59:00"))
     assert not scheduler.is_trading(ts("2026-09-24 15:00:00"))
     assert not scheduler.is_trading(ts("2026-09-27 20:59:00"))
@@ -45,13 +40,8 @@ def test_builtin_china_futures_calendar_has_no_night_session_after_holidays(
     ["CN_FUTURES_0230", "CN_FUTURES_0100", "CN_FUTURES_2300"],
 )
 def test_builtin_china_futures_calendars_follow_2026_holiday_night_session_notices(
-    calendar_name, holiday_name, nightless_date, reopen_date
+    calendar_name, scheduler, holiday_name, nightless_date, reopen_date
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
-
     assert scheduler.is_trading(ts(f"{nightless_date} 14:59:00"))
     assert not scheduler.is_trading(ts(f"{nightless_date} 15:00:00"))
     assert not scheduler.is_trading(ts(f"{nightless_date} 20:59:00"))
@@ -71,12 +61,8 @@ def test_builtin_china_futures_calendars_follow_2026_holiday_night_session_notic
 )
 def test_builtin_china_futures_calendar_has_no_night_session_on_2024_12_31(
     calendar_name,
+    scheduler,
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
-
     assert scheduler.is_trading(ts("2024-12-31 14:59:00"))
     assert not scheduler.is_trading(ts("2024-12-31 15:00:00"))
     assert not scheduler.is_trading(ts("2025-01-01 20:59:00"))

@@ -55,7 +55,7 @@ uv sync
 ## Usage
 
 ```python
-from chronosx_quant.time import ChronoTime
+from chronosx_quant import ChronoTime, use_calendar
 import pandas as pd
 
 # use CALENDAR_NAME to select default calendar, e.g. SSE
@@ -63,17 +63,19 @@ import pandas as pd
 # defaults: SCHEDULE_START=2022-01-01, SCHEDULE_END=now+3y
 time = ChronoTime.now()
 time = ChronoTime("2026-03-09 11:29:00+08:00")
+```
 
-# temporarily use another scheduler; the previous one is restored when the
-# block exits. start/end control its preloaded window.
-from chronosx_quant.scheduler import SchedulerManager, StaticMinuteScheduler
+> [!WARNING]
+> Every time the `use_calendar()` context is entered, it creates a new scheduler
+> and precomputes the complete schedule window. Initialization is slow, so this
+> convenience API is not suitable for latency-sensitive code. Enter the context
+> once outside the hot path and reuse its scheduler instead of calling it in a
+> loop or for every event.
 
-cme_scheduler = StaticMinuteScheduler(
-    "CME Globex Crypto",
-    start="2026-01-01",
-    end="2026-12-31",
-)
-with SchedulerManager.use_scheduler(cme_scheduler) as scheduler:
+```python
+# Temporarily use another calendar; the previous one is restored when the
+# block exits. Optional start/end arguments control its preloaded window.
+with use_calendar("CME Globex Crypto") as scheduler:
     time = ChronoTime("2026-03-09 17:00:00")
     print(scheduler.calendar.name)
     print(time.is_trading())
@@ -172,6 +174,8 @@ For SHF/DCE in China, calendars have multiple breaks. These three built-in varia
 
 I use static minute scheduler for speed, don't support multi step in the same time, and don't support extend schedule time range. It's ok to add new scheduler to support multi step or dynamic time range.
 
+- [ ] dynamic range scheduler cache?
+
 ## Benchmark
 
 The benchmark suite uses `pytest-benchmark`.
@@ -179,19 +183,37 @@ The benchmark suite uses `pytest-benchmark`.
 Run the full benchmark file:
 
 ```bash
-uv run pytest tests/benchmark_chrono.py --benchmark-only
+uv run pytest tests/benchmark_chrono.py --benchmark-only \
+  --benchmark-warmup=on \
+  --benchmark-calibration-precision=100
 ```
 
 Run a single benchmark:
 
 ```bash
-uv run pytest tests/benchmark_chrono.py -k test_perf_is_trading --benchmark-only
+uv run pytest tests/benchmark_chrono.py -k test_perf_is_trading \
+  --benchmark-only \
+  --benchmark-warmup=on \
+  --benchmark-calibration-precision=100
 ```
 
-To run benchmark suites for stabilized performance metrics and export results:
+Export the full result for later analysis:
 
 ```bash
-uv run pytest tests/benchmark_chrono.py --benchmark-only --benchmark-json=.benchmarks/chrono.json --benchmark-warmup=on --benchmark-calibration-precision=100
+uv run pytest tests/benchmark_chrono.py --benchmark-only \
+  --benchmark-warmup=on \
+  --benchmark-calibration-precision=100 \
+  --benchmark-json=.benchmarks/chrono.json
+```
+
+Run and export only the schedule-size cases:
+
+```bash
+uv run pytest tests/benchmark_chrono.py -k by_schedule_size \
+  --benchmark-only \
+  --benchmark-warmup=on \
+  --benchmark-calibration-precision=100 \
+  --benchmark-json=.benchmarks/schedule-size.json
 ```
 
 Useful notes:
@@ -200,6 +222,8 @@ Useful notes:
   `ICE`, and `CN_FUTURES_2300`, sampling trading times near the early, middle,
   and late portions of each loaded schedule
 - `--benchmark-only` runs only benchmark tests and skips normal tests
+- warmup and higher calibration precision reduce startup and timer-calibration
+  noise, but benchmarks should still be repeated on an otherwise idle machine
 - if you want the usual pytest output without benchmark filtering, you can run `uv run pytest tests/benchmark_chrono.py`
 
 Benchmark preview:
@@ -226,17 +250,23 @@ cases during this run.
 | `ChronoTime.now()` | 28.62 µs | 2.74–28.90 µs |
 | mocked `ChronoTime.now()` | 0.48 µs | 0.14–0.97 µs |
 
-The schedule-size cases below use the median of the early, middle, and late
-query-position medians for each window. `to_session_end` remained stable in this
-run; the wider `get_trading_date` and `to_session_start` results reflect the
-same host-level timing noise visible above and should not be interpreted as an
-algorithmic schedule-size trend.
+Schedule-size preview:
+
+Source: `.benchmarks/schedule-size.json`, generated on 2026-08-21 with the
+schedule-size command above on the same host and Python version. These are
+warm-state lookup measurements; scheduler construction is not included.
+
+Each cell uses the median of the early, middle, and late query-position case
+medians for that window. The three lookup methods share the same `O(log N)`
+session search. Differences this small are normal measurement noise and should
+not be interpreted as a schedule-size performance trend; memory use, by
+contrast, grows approximately linearly with the loaded window.
 
 | Schedule window | Sessions | Total scheduler memory | `get_trading_date` | `to_session_start` | `to_session_end` |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 3 years | 727 | 1.36 MiB | 33.48 µs | 3.23 µs | 3.12 µs |
-| 6 years | 1,455 | 2.73 MiB | 34.25 µs | 3.15 µs | 3.12 µs |
-| 10 years | 2,430 | 4.56 MiB | 2.95 µs | 3.15 µs | 3.12 µs |
+| 3 years | 727 | 1.36 MiB | 4.20 µs | 4.77 µs | 5.13 µs |
+| 6 years | 1,455 | 2.73 MiB | 4.20 µs | 4.90 µs | 4.87 µs |
+| 10 years | 2,430 | 4.56 MiB | 4.27 µs | 5.00 µs | 5.00 µs |
 
 ## Docker Service
 

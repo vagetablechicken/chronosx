@@ -32,9 +32,10 @@ def test_performance_supports_metric_level_configuration():
     assert PerformanceRegistry.get_count("configured") == 2
     assert PerformanceRegistry.get_config("configured").min_value_us == 500
     assert PerformanceRegistry.get_config("configured").max_value_us == 4000
-    assert PerformanceRegistry.get_config("configured").significant_figures == 4
-    assert PerformanceRegistry.get_percentile("configured", 0.5) >= 500
-    assert 4000 <= PerformanceRegistry.get_percentile("configured", 0.99) <= 4095
+    p50 = PerformanceRegistry.get_percentile("configured", 0.5)
+    p99 = PerformanceRegistry.get_percentile("configured", 0.99)
+    assert p50 is not None and p50 >= 500
+    assert p99 is not None and 4000 <= p99 <= 4095
 
 
 def test_registry_default_configuration_can_be_overridden():

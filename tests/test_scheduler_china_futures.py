@@ -1,9 +1,8 @@
-import pandas as pd
 import pytest
 
 from chronosx_quant.scheduler import SchedulerManager
 from chronosx_quant.time import ChronoTime
-from tests.helpers import get_scheduler
+from tests.helpers import ts
 
 
 @pytest.mark.parametrize(
@@ -30,15 +29,16 @@ from tests.helpers import get_scheduler
     ],
 )
 def test_builtin_china_futures_calendar_aliases_and_close_boundaries(
-    calendar_name, alias, last_trading_minute, first_non_trading_minute
+    calendar_name,
+    scheduler,
+    alias,
+    last_trading_minute,
+    first_non_trading_minute,
+    get_scheduler,
 ):
-    scheduler = get_scheduler(calendar_name)
     alias_scheduler = get_scheduler(alias)
 
     assert type(alias_scheduler.calendar) is type(scheduler.calendar)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     assert not scheduler.is_trading(ts("2026-03-09 20:59:00"))
     assert scheduler.is_trading(ts("2026-03-09 21:00:00"))
@@ -86,12 +86,8 @@ def test_builtin_china_futures_calendar_aliases_and_close_boundaries(
     ],
 )
 def test_builtin_china_futures_calendar_shift(
-    calendar_name, before_break, after_break, night_last, next_session_first
+    calendar_name, scheduler, before_break, after_break, night_last, next_session_first
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     assert scheduler.shift(ts(before_break), 1, step="1min") == ts(after_break)
     assert scheduler.shift(ts(after_break), -1, step="1min") == ts(before_break)
@@ -136,12 +132,8 @@ def test_builtin_china_futures_calendar_shift(
     ],
 )
 def test_builtin_china_futures_calendar_session_boundaries(
-    calendar_name, trading_time, expected_session_start, expected_session_end
+    calendar_name, scheduler, trading_time, expected_session_start, expected_session_end
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     assert scheduler.to_session_start(ts(trading_time)) == ts(expected_session_start)
     assert scheduler.to_session_end(ts(trading_time)) == ts(expected_session_end)
@@ -189,6 +181,7 @@ def test_builtin_china_futures_calendar_session_boundaries(
 )
 def test_builtin_china_futures_calendar_trading_times(
     calendar_name,
+    scheduler,
     day_start,
     day_end,
     day_expected_len,
@@ -196,10 +189,6 @@ def test_builtin_china_futures_calendar_trading_times(
     night_end,
     night_expected_len,
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     day_times = scheduler.trading_times(ts(day_start), ts(day_end), step="1min")
     assert len(day_times) == day_expected_len
@@ -280,6 +269,7 @@ def test_builtin_china_futures_calendar_trading_times(
 )
 def test_builtin_china_futures_calendar_previous_and_next_trading_time(
     calendar_name,
+    scheduler,
     break_time,
     prev_expected,
     next_expected,
@@ -290,10 +280,6 @@ def test_builtin_china_futures_calendar_previous_and_next_trading_time(
     after_close_prev_expected,
     after_close_next_expected,
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     assert scheduler.previous_trading_time(
         ts(break_time), step="1min", inclusive=True
@@ -315,22 +301,21 @@ def test_builtin_china_futures_calendar_previous_and_next_trading_time(
     ) == ts(after_close_next_expected)
 
     with SchedulerManager.use_scheduler(scheduler):
-        assert (
-            ChronoTime(break_time).previous_trading_time().isoformat()
-            == ts(prev_expected).isoformat()
-        )
-        assert (
-            ChronoTime(break_time).next_trading_time().isoformat()
-            == ts(next_expected).isoformat()
-        )
-        assert (
-            ChronoTime(trading_time).previous_trading_time(inclusive=False).isoformat()
-            == ts(exclusive_prev_expected).isoformat()
-        )
-        assert (
-            ChronoTime(trading_time).next_trading_time(inclusive=False).isoformat()
-            == ts(exclusive_next_expected).isoformat()
-        )
+        prev_t = ChronoTime(break_time).previous_trading_time()
+        assert prev_t is not None
+        assert prev_t.isoformat() == ts(prev_expected).isoformat()
+
+        next_t = ChronoTime(break_time).next_trading_time()
+        assert next_t is not None
+        assert next_t.isoformat() == ts(next_expected).isoformat()
+
+        prev_ex = ChronoTime(trading_time).previous_trading_time(inclusive=False)
+        assert prev_ex is not None
+        assert prev_ex.isoformat() == ts(exclusive_prev_expected).isoformat()
+
+        next_ex = ChronoTime(trading_time).next_trading_time(inclusive=False)
+        assert next_ex is not None
+        assert next_ex.isoformat() == ts(exclusive_next_expected).isoformat()
 
 
 @pytest.mark.parametrize(
@@ -371,16 +356,13 @@ def test_builtin_china_futures_calendar_previous_and_next_trading_time(
 )
 def test_builtin_china_futures_calendar_monday_session_comes_from_friday_night(
     calendar_name,
+    scheduler,
     friday_open,
     saturday_break_start,
     saturday_last_trading_minute,
     sunday_open,
     monday_daytime,
 ):
-    scheduler = get_scheduler(calendar_name)
-
-    def ts(value):
-        return pd.Timestamp(value, tz=scheduler.tz)
 
     assert scheduler.is_trading(ts(friday_open))
     assert scheduler.to_session_end(ts(friday_open)) == ts("2026-03-09 15:00:00")

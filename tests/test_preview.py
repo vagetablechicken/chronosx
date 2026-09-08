@@ -147,8 +147,10 @@ def test_combined_preview_remains_compatible_for_service():
         )
 
     assert result["upcoming_holidays"] == ["2026-08-12"]
-    assert result["check"]["weekday"] == "Monday"
-    assert result["check"]["is_trading_day"] is True
+    check = result["check"]
+    assert isinstance(check, dict)
+    assert check["weekday"] == "Monday"
+    assert check["is_trading_day"] is True
 
 
 def test_main_holidays_command(capsys):

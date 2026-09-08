@@ -5,7 +5,9 @@ import pytest
 
 # Pandas imports pyarrow opportunistically; a broken local pyarrow wheel should
 # not prevent service tests from collecting.
-sys.modules.setdefault("pyarrow", types.SimpleNamespace(__version__="0.0.0"))
+_pyarrow_stub = types.ModuleType("pyarrow")
+_pyarrow_stub.__version__ = "0.0.0"  # type: ignore[attr-defined]
+sys.modules.setdefault("pyarrow", _pyarrow_stub)
 
 pytest.importorskip("fastapi")
 pytest.importorskip("prometheus_client")
@@ -13,6 +15,7 @@ pytest.importorskip("pandas_market_calendars")
 
 from fastapi import HTTPException  # noqa: E402
 from fastapi.responses import PlainTextResponse  # noqa: E402
+from fastapi.routing import APIRoute  # noqa: E402
 
 from chronosx_quant import __version__  # noqa: E402
 from docker.service import app, build_metrics_payload, build_query_payload  # noqa: E402
@@ -20,7 +23,7 @@ from docker.service import app, build_metrics_payload, build_query_payload  # no
 
 def _route_endpoint(path: str):
     for route in app.routes:
-        if getattr(route, "path", None) == path:
+        if isinstance(route, APIRoute) and route.path == path:
             return route.endpoint
     raise AssertionError(f"Route {path} not found")
 
@@ -86,7 +89,7 @@ def test_metrics_endpoint_returns_prometheus_text():
     response = metrics()
 
     assert isinstance(response, PlainTextResponse)
-    body = response.body.decode("utf-8")
+    body = bytes(response.body).decode("utf-8")
     content_type = response.media_type
 
     assert "query_time=" not in body

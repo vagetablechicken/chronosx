@@ -1,1 +1,11 @@
-__version__ = "0.3.0b3"
+__version__ = "0.3.0"
+
+from .scheduler import use_calendar
+from .time import ChronoDay, ChronoTime
+
+__all__ = [
+    "ChronoDay",
+    "ChronoTime",
+    "__version__",
+    "use_calendar",
+]

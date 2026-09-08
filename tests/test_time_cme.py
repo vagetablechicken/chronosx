@@ -1,9 +1,8 @@
 from chronosx_quant.scheduler import SchedulerManager
 from chronosx_quant.time import ChronoTime
-from tests.helpers import get_scheduler
 
 
-def test_cme_specials():
+def test_cme_specials(get_scheduler):
     with SchedulerManager.use_scheduler(get_scheduler("CME Globex Crypto")):
         t1 = ChronoTime("2025-10-24T00:00:00")
         assert t1.isoformat() == "2025-10-24T00:00:00-05:00"

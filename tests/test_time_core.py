@@ -3,9 +3,8 @@ from datetime import date, datetime, timezone
 import pandas as pd
 import pytest
 
-from chronosx_quant.scheduler import SchedulerManager
-from chronosx_quant.time import ChronoTime
-from tests.helpers import get_scheduler
+from chronosx_quant import ChronoDay, ChronoTime, use_calendar
+from chronosx_quant.scheduler import SchedulerManager, StaticMinuteScheduler
 
 
 def test_init():
@@ -13,7 +12,7 @@ def test_init():
     assert isinstance(t1, ChronoTime)
     assert t1.isoformat() == "2024-01-01T00:00:00+08:00"
 
-    with SchedulerManager.use_scheduler(get_scheduler("SSE")):
+    with use_calendar("SSE"):
         t1 = ChronoTime("2024-01-01T09:30:00")
         assert t1.isoformat() == "2024-01-01T09:30:00+08:00"
 
@@ -65,8 +64,17 @@ def test_now_returns_current_time_in_scheduler_timezone():
     assert before <= result <= after
 
 
+def test_now_rejects_tz_parameter():
+    scheduler = SchedulerManager.get_scheduler()
+    with pytest.raises(
+        ValueError,
+        match="ChronoTime.now\\(\\) does not accept 'tz'",
+    ):
+        ChronoTime.now(tz=scheduler.tz)
+
+
 def test_time_shift():
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError):
         ChronoTime("2026-01-01T00:00:00").shift(1, step="1min")
 
     t = ChronoTime("2026-03-10T09:30:00").shift(1, step="1min")
@@ -199,6 +207,7 @@ def test_previous_and_next():
 
 def test_previous_and_next_return_none_at_loaded_schedule_boundaries():
     scheduler = SchedulerManager.get_scheduler()
+    assert isinstance(scheduler, StaticMinuteScheduler)
     first = ChronoTime(scheduler.trading_minutes[0])
     last = ChronoTime(scheduler.trading_minutes[-1])
 
@@ -227,11 +236,13 @@ def test_session_start_and_end():
 
 
 def test_get_trading_date_returns_chronotime_and_supports_date_conversion():
-    result = ChronoTime("2026-03-10T12:00:00").get_trading_date()
+    t = ChronoTime("2026-03-10T12:00:00")
+    result = t.get_trading_date()
 
-    assert isinstance(result, ChronoTime)
+    assert isinstance(result, ChronoDay)
     assert result == ChronoTime("2026-03-10")
     assert result.date() == date(2026, 3, 10)
+    assert t.trading_day == result
 
 
 @pytest.mark.parametrize(

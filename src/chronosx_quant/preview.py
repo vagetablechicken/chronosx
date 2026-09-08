@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date, timedelta
 import sys
 from typing import Any
 
@@ -60,9 +61,14 @@ def _calendar_argument(value: str) -> str:
 
 def _to_calendar_timezone(value: str | pd.Timestamp, timezone) -> pd.Timestamp:
     timestamp = pd.Timestamp(value)
-    if timestamp.tzinfo is None:
-        return timestamp.tz_localize(timezone)
-    return timestamp.tz_convert(timezone)
+    assert isinstance(timestamp, pd.Timestamp)
+    res = (
+        timestamp.tz_localize(timezone)
+        if timestamp.tzinfo is None
+        else timestamp.tz_convert(timezone)
+    )
+    assert isinstance(res, pd.Timestamp)
+    return res
 
 
 def _make_scheduler(
@@ -90,10 +96,12 @@ def _holiday_payload(
     start_date = (
         today if start is None else _to_calendar_timezone(start, calendar.tz).date()
     )
-    end_date = start_date + pd.Timedelta(days=days_ahead)
-    holiday_dates = [
-        pd.Timestamp(value).date() for value in calendar.holidays().kwds["holidays"]
-    ]
+    end_date = start_date + timedelta(days=days_ahead)
+    holiday_dates: list[date] = []
+    for value in calendar.holidays().kwds["holidays"]:
+        ts_val = pd.Timestamp(value)
+        if isinstance(ts_val, pd.Timestamp):
+            holiday_dates.append(ts_val.date())
     holidays_in_range = [
         holiday.isoformat()
         for holiday in holiday_dates
@@ -129,8 +137,8 @@ def _time_payload(
         "time": query_time.isoformat(),
         "date": query_time.date().isoformat(),
         "weekday": query_time.day_name(),
-        "is_trading_day": bool(scheduler.is_trading_day(query_time)),
-        "is_trading_time": bool(scheduler.is_trading(query_time)),
+        "is_trading_day": scheduler.is_trading_day(query_time),
+        "is_trading_time": scheduler.is_trading(query_time),
         "trading_date": (
             trading_date.date().isoformat() if trading_date is not None else None
         ),

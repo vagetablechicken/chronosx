@@ -1,11 +1,15 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from functools import wraps
+
 import inspect
 import io
 import time
+from dataclasses import dataclass
+from functools import wraps
+from typing import Any, Callable, TypeVar, cast
+
 from hdrh.histogram import HdrHistogram
-from typing import Dict
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass(frozen=True)
@@ -18,8 +22,8 @@ class PerformanceConfig:
 class PerformanceRegistry:
     """Global storage for per-metric latency histograms."""
 
-    _metrics: Dict[str, HdrHistogram] = {}
-    _configs: Dict[str, PerformanceConfig] = {}
+    _metrics: dict[str, HdrHistogram] = {}
+    _configs: dict[str, PerformanceConfig] = {}
     _default_config = PerformanceConfig()
 
     @classmethod
@@ -180,7 +184,7 @@ class performance:
 
     def __init__(
         self,
-        name: str = None,
+        name: str | None = None,
         *,
         min_value_us: int | None = None,
         max_value_us: int | None = None,
@@ -201,7 +205,7 @@ class performance:
             int((time.perf_counter() - start_time) * 1_000_000),
         )
 
-    def __call__(self, func):
+    def __call__(self, func: F) -> F:
         """Build the wrapper used by ``@performance(...)``."""
         metric_name = self.name or func.__qualname__
         backend = PerformanceRegistry.get_backend(metric_name, self.config)
@@ -236,7 +240,7 @@ class performance:
                 finally:
                     pass
 
-            return generator_wrapper
+            return cast(F, generator_wrapper)
 
         # Regular synchronous function.
         @wraps(func)
@@ -255,14 +259,18 @@ class performance:
                 except Exception:
                     pass
 
-        return normal_wrapper
+        return cast(F, normal_wrapper)
 
     def __enter__(self):
         """Start timing for ``with performance(...):`` usage."""
         if self.name is None:
             # Use the caller location as a fallback metric name.
-            cf = inspect.currentframe().f_back
-            self.name = f"{cf.f_code.co_filename.split('/')[-1]}:{cf.f_lineno}"
+            cf = inspect.currentframe()
+            if cf is not None and cf.f_back is not None:
+                back = cf.f_back
+                self.name = f"{back.f_code.co_filename.split('/')[-1]}:{back.f_lineno}"
+            else:
+                self.name = "unnamed_scope"
 
         self.local_start = time.perf_counter()
         return self
@@ -270,7 +278,8 @@ class performance:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Record elapsed time when leaving the ``with`` block."""
         try:
-            PerformanceRegistry.get_backend(self.name, self.config).record_value(
+            name = self.name or "unnamed_scope"
+            PerformanceRegistry.get_backend(name, self.config).record_value(
                 min(
                     self._elapsed_us(self.local_start, self.config.min_value_us),
                     self.config.max_value_us,

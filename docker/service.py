@@ -4,6 +4,7 @@ import os
 from dataclasses import asdict, dataclass
 from contextlib import contextmanager
 from threading import Lock
+from typing import Any, Generator, cast
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
@@ -55,23 +56,30 @@ def _get_scheduler(calendar_name: str) -> StaticMinuteScheduler:
 
 
 @contextmanager
-def _use_scheduler(calendar_name: str):
-    with SchedulerManager.use_scheduler(_get_scheduler(calendar_name)):
-        yield SchedulerManager.get_scheduler()
+def _use_scheduler(calendar_name: str) -> Generator[StaticMinuteScheduler, None, None]:
+    sched = _get_scheduler(calendar_name)
+    with SchedulerManager.use_scheduler(sched):
+        yield sched
 
 
 def _session_bounds_for_day(
     scheduler: StaticMinuteScheduler, time: ChronoTime
 ) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     day_start = time.normalize()
-    day_end = day_start + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
-    target_interval = pd.Interval(day_start, day_end, closed="left")
-    overlaps = scheduler.session_intervals.overlaps(target_interval)
-    if not overlaps.any():
+    day_end = day_start + pd.Timedelta(days=1) - pd.Timedelta("1ns")
+    close_times = scheduler.schedule["market_close"]
+    idx = int(close_times.searchsorted(cast(Any, day_start), side="right"))
+    if idx >= len(close_times):
         return None, None
-
-    trading_day = scheduler.schedule.loc[overlaps].iloc[0]
-    return trading_day["market_open"], trading_day["market_close"]
+    if scheduler.schedule["market_open"].iloc[idx] <= day_end:
+        trading_day = scheduler.schedule.iloc[idx]
+        open_time = trading_day["market_open"]
+        close_time = trading_day["market_close"]
+        assert isinstance(open_time, pd.Timestamp) and isinstance(
+            close_time, pd.Timestamp
+        )
+        return open_time, close_time
+    return None, None
 
 
 def _build_trading_snapshot(

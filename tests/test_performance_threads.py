@@ -48,7 +48,7 @@ def test_decorated_function_uses_independent_timing_per_thread():
             with ThreadPoolExecutor(
                 max_workers=4, thread_name_prefix="worker"
             ) as executor:
-                results = list(executor.map(lambda _: work(), range(4)))
+                results = [r for r in executor.map(lambda _: work(), range(4))]
 
     assert sorted(results) == ["worker_0", "worker_1", "worker_2", "worker_3"]
     get_backend.assert_called_once_with(

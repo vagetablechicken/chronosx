@@ -27,7 +27,9 @@ def test_performance():
             f1()
 
     assert PerformanceRegistry.get_count("test") == 10
-    assert 100_000 <= PerformanceRegistry.get_percentile("test", 0.9)
+    percentile_90 = PerformanceRegistry.get_percentile("test", 0.9)
+    assert percentile_90 is not None
+    assert 100_000 <= percentile_90
     report = PerformanceRegistry.get_report("test")
     assert "test" in report
     assert "count=10" in report
@@ -54,7 +56,9 @@ def test_with_performance_accumulates_total_time_in_registry():
             pass
 
     assert PerformanceRegistry.get_count("scoped") == 3
-    assert PerformanceRegistry.get_percentile("scoped", 0.5) >= 5000
+    percentile_50 = PerformanceRegistry.get_percentile("scoped", 0.5)
+    assert percentile_50 is not None
+    assert percentile_50 >= 5000
     report = PerformanceRegistry.get_report("scoped")
     assert "count=3" in report
     assert "max=12,007" in report
